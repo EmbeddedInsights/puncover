@@ -191,16 +191,18 @@ class Collector:
     # puncover.c:8:43:dynamic_stack2	16	dynamic
     parse_stack_usage_line_pattern = re.compile(r"^(.*?\.[ch](pp)?):(\d+):(\d+):([^\t]+)\t+(\d+)\s+([a-z,]+)")
 
-    def parse_stack_usage_line(self, line):
+    def parse_stack_usage_line(self, line, src_dir):
         match = self.parse_stack_usage_line_pattern.match(line)
         if not match:
             return False
-
+        
         base_file_name = match.group(1)
         line = int(match.group(3))
         symbol_name = match.group(5)
         stack_size = int(match.group(6))
         stack_qualifier = match.group(7)
+
+        base_file_name = os.path.relpath(os.path.normpath( os.path.join(self._su_dir, base_file_name)), src_dir)
 
         return self.add_stack_usage(base_file_name, line, symbol_name, stack_size, stack_qualifier)
 
@@ -275,7 +277,7 @@ class Collector:
                 symbol[STACK_QUALIFIERS] = stack_qualifier
                 return True
 
-        # warning("Couldn't find symbol for %s:%d:%s" % (base_file_name, line, symbol_name))
+        warning("Couldn't find symbol for %s:%d:%s" % (base_file_name, line, symbol_name))
         return False
 
 
@@ -289,6 +291,8 @@ class Collector:
                     path = os.path.relpath(path, base_dir)
                 elif path.startswith("/"):
                     path = path[1:]
+                #elif path.startswith("./"):
+                #    path = path[2:]
                 s[PATH] = path
 
     def unmangle_cpp_names(self):
@@ -309,7 +313,7 @@ class Collector:
 
         self.elf_mtime = os.path.getmtime(elf_file)
 
-    def parse_su_dir(self, su_dir):
+    def parse_su_dir(self, su_dir, src_dir=None):
 
         def gen_find(filepat,top):
             for path, dirlist, filelist in os.walk(top):
@@ -332,9 +336,10 @@ class Collector:
             return lines
 
         if su_dir:
+            self._su_dir = su_dir
             print("parsing stack usages starting at %s" % su_dir)
             for l in get_stack_usage_lines(su_dir):
-                self.parse_stack_usage_line(l)
+                self.parse_stack_usage_line(l, src_dir)
 
     def sorted_by_size(self, symbols):
         return sorted(symbols, key=lambda k: k.get("size", 0), reverse=True)

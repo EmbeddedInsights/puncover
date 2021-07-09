@@ -21,7 +21,7 @@ class Builder:
         self.collector.reset()
         self.collector.parse_elf(self.get_elf_path())
         self.collector.enhance(self.src_root)
-        self.collector.parse_su_dir(self.get_su_dir())
+        self.collector.parse_su_dir(self.get_su_dir(), self.src_root)
         self.build_call_trees()
 
     def needs_build(self):
